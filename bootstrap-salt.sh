@@ -2035,8 +2035,8 @@ install_smartos_deps() {
     check_pip_allowed
     echowarn "PyZMQ will be installed using pip"
 
-    ZEROMQ_VERSION='3.2.2'
-    pkgin -y in libtool-base autoconf automake libuuid gcc-compiler gmake \
+    ZEROMQ_VERSION='3.2.3'
+    pkgin -y in libtool-base autoconf automake libuuid gcc47 gmake \
         python27 py27-pip py27-setuptools py27-yaml py27-crypto swig || return 1
     [ -d zeromq-${ZEROMQ_VERSION} ] || (
         wget http://download.zeromq.org/zeromq-${ZEROMQ_VERSION}.tar.gz &&
