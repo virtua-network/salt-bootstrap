@@ -2034,7 +2034,7 @@ install_freebsd_restart_daemons() {
 install_smartos_deps() {
     pkgin -y in libtool-base libuuid \
         python27 py27-pip py27-setuptools py27-yaml py27-crypto swig \
-        py27-OpenSSL zeromq py27-msgpack py27-zmq py27-m2crypto || return 1
+        py27-OpenSSL zeromq py27-msgpack py27-zmq py27-m2crypto py27-jinja2 || return 1
 
     # Let's trigger config_salt()
     if [ "$TEMP_CONFIG_DIR" = "null" ]; then
