@@ -2061,6 +2061,7 @@ install_smartos_deps() {
 install_smartos_git_deps() {
     install_smartos_deps || return 1
     pkgin -y in scmgit || return 1
+		git config --global http.sslCAPath /opt/local/etc/openssl/certs || return 1
 
     __git_clone_and_checkout || return 1
     # Let's trigger config_salt()
