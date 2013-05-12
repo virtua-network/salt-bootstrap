@@ -2035,7 +2035,7 @@ install_freebsd_restart_daemons() {
 install_smartos_deps() {
     pkgin -y in \
         py27-pip py27-setuptools py27-yaml py27-crypto swig \
-        py27-msgpack py27-zmq py27-m2crypto py27-jinja2 || return 1
+        py27-msgpack py27-zmq py27-m2crypto py27-jinja2 mozilla-rootcerts || return 1
 
     # Let's trigger config_salt()
     if [ "$TEMP_CONFIG_DIR" = "null" ]; then
@@ -2061,7 +2061,8 @@ install_smartos_deps() {
 install_smartos_git_deps() {
     install_smartos_deps || return 1
     pkgin -y in scmgit || return 1
-		git config --global http.sslCAPath /opt/local/etc/openssl/certs || return 1
+    mozilla-rootcerts install || return 1
+    git config --global http.sslCAPath /opt/local/etc/openssl/certs || return 1
 
     __git_clone_and_checkout || return 1
     # Let's trigger config_salt()
@@ -2080,7 +2081,7 @@ install_smartos_stable() {
 
 install_smartos_git() {
     # Use setuptools in order to also install dependencies
-    USE_SETUPTOOLS=1 /opt/local/bin/python setup.py install || return 1
+    USE_SETUPTOOLS=1 /opt/local/bin/python2.7 setup.py install || return 1
     return 0
 }
 
