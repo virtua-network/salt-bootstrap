@@ -2112,7 +2112,7 @@ install_smartos_post() {
         svcs network/salt-$fname > /dev/null 2>&1
         if [ $? -eq 1 ]; then
             if [ ! -f $TEMP_CONFIG_DIR/salt-$fname.xml ]; then
-                curl -sk -o $TEMP_CONFIG_DIR/salt-$fname.xml -L https://raw.github.com/saltstack/salt/develop/pkg/solaris/salt-$fname.xml
+                curl -sk -o $TEMP_CONFIG_DIR/salt-$fname.xml -L https://raw.github.com/saltstack/salt/develop/pkg/smartos/salt-$fname.xml
             fi
             svccfg import $TEMP_CONFIG_DIR/salt-$fname.xml
         fi
@@ -2124,7 +2124,7 @@ install_smartos_git_post() {
     for fname in minion master syndic; do
         svcs network/salt-$fname > /dev/null 2>&1
         if [ $? -eq 1 ]; then
-            svccfg import ${SALT_GIT_CHECKOUT_DIR}/pkg/solaris/salt-$fname.xml
+            svccfg import ${SALT_GIT_CHECKOUT_DIR}/pkg/smartos/salt-$fname.xml
         fi
     done
 }
