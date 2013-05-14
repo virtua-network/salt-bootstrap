@@ -2083,7 +2083,10 @@ install_smartos_deps() {
 install_smartos_git_deps() {
     install_smartos_deps || return 1
     pkgin -y in scmgit || return 1
-    mozilla-rootcerts install || return 1
+    # Install SSL root certificates if needed
+    if [ ! -d /etc/ssl ]; then
+        mozilla-rootcerts install || return 1
+    fi
 
     __git_clone_and_checkout || return 1
     # Let's trigger config_salt()
