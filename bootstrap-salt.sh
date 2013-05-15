@@ -2088,7 +2088,7 @@ install_smartos_git_deps() {
     install_smartos_deps || return 1
     pkgin -y in scmgit || return 1
     # Install SSL root certificates if needed
-    if [ ! -d /etc/ssl ]; then
+    if [ ! -f /opt/local/etc/openssl/certs/mozilla-rootcert-0.pem ]; then
         mozilla-rootcerts install || return 1
     fi
 
