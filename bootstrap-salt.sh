@@ -274,7 +274,13 @@ shift $(($OPTIND-1))
 
 __check_unparsed_options() {
     shellopts="$1"
-    unparsed_options=$( echo "$shellopts" | grep -E '[-]+[[:alnum:]]' )
+    # grep alternative for SunOS
+    if [ -f /usr/xpg4/bin/grep ]; then
+        grep='/usr/xpg4/bin/grep'
+    else
+        grep='grep'
+    fi
+    unparsed_options=$( echo "$shellopts" | ${grep} -E '[-]+[[:alnum:]]' )
     if [ "x$unparsed_options" != "x" ]; then
         usage
         echo
@@ -330,9 +336,14 @@ if [ "$#" -gt 0 ]; then
     echoerror "Too many arguments."
     exit 1
 fi
-
+# whoami alternative for SunOS
+if [ -f /usr/xpg4/bin/id ]; then
+    whoami='/usr/xpg4/bin/id -un'
+else
+    whoami='whoami'
+fi
 # Root permissions are required to run this script
-if [ $(whoami) != "root" ] ; then
+if [ $(${whoami}) != "root" ]; then
     echoerror "Salt requires root privileges to install. Please re-run this script as root."
     exit 1
 fi
@@ -1270,7 +1281,7 @@ install_debian_6_deps() {
     wget -q http://debian.saltstack.com/debian-salt-team-joehealy.gpg.key -O - | apt-key add - || return 1
 
     if [ $PIP_ALLOWED -eq $BS_TRUE ]; then
-        echowarn "PyZMQ will be installed from PyPi in order to compile it against ZMQ3"
+        echowarn "PyZMQ will be installed from PyPI in order to compile it against ZMQ3"
         echowarn "This is required for long term stable minion connections to the master."
         echowarn "YOU WILL END UP WILL QUITE A FEW PACKAGES FROM DEBIAN UNSTABLE"
         echowarn "Sleeping for 3 seconds so you can cancel..."
@@ -1336,7 +1347,7 @@ install_debian_7_deps() {
     wget -q http://debian.saltstack.com/debian-salt-team-joehealy.gpg.key -O - | apt-key add - || return 1
 
     if [ $PIP_ALLOWED -eq $BS_TRUE ]; then
-        echowarn "PyZMQ will be installed from PyPi in order to compile it against ZMQ3"
+        echowarn "PyZMQ will be installed from PyPI in order to compile it against ZMQ3"
         echowarn "This is required for long term stable minion connections to the master."
         echowarn "YOU WILL END UP WILL QUITE A FEW PACKAGES FROM DEBIAN UNSTABLE"
         echowarn "Sleeping for 3 seconds so you can cancel..."
