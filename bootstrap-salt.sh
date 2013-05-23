@@ -864,7 +864,7 @@ __git_clone_and_checkout() {
             git pull --rebase || return 1
         fi
     else
-        git clone https://github.com/saltstack/salt.git salt || return 1
+        git clone git://github.com/saltstack/salt.git || return 1
         cd $SALT_GIT_CHECKOUT_DIR
         git checkout $GIT_REV || return 1
     fi
@@ -1402,7 +1402,21 @@ install_debian_git_deps() {
 
 install_debian_6_git_deps() {
     install_debian_6_deps || return 1
-    install_debian_git_deps || return 1  # Grab the actual deps
+    if [ $PIP_ALLOWED -eq $BS_TRUE ]; then
+        easy_install -U Jinja2 || return 1
+        __apt_get_noinput lsb-release python python-pkg-resources python-crypto \
+            python-m2crypto python-yaml msgpack-python python-pip git || return 1
+
+        __git_clone_and_checkout || return 1
+
+        # Let's trigger config_salt()
+        if [ "$TEMP_CONFIG_DIR" = "null" ]; then
+            TEMP_CONFIG_DIR="${SALT_GIT_CHECKOUT_DIR}/conf/"
+            CONFIG_SALT_FUNC="config_salt"
+        fi
+    else
+        install_debian_git_deps || return 1  # Grab the actual deps
+    fi
     return 0
 }
 
@@ -1903,9 +1917,7 @@ SigLevel = Optional TrustAll
 }
 
 install_arch_linux_git_deps() {
-    grep '\[salt\]' /etc/pacman.conf >/dev/null 2>&1 || echo '[salt]
-Server = http://intothesaltmine.org/archlinux
-' >> /etc/pacman.conf
+    install_arch_linux_stable_deps
 
     pacman -Sy --noconfirm pacman || return 1
     pacman -Sy --noconfirm git python2-crypto python2-distribute \
@@ -2272,7 +2284,13 @@ install_opensuse_stable_deps() {
             http://download.opensuse.org/repositories/devel:/languages:/python/${DISTRO_REPO}/devel:languages:python.repo || return 1
     fi
 
-    zypper --gpg-auto-import-keys --non-interactive refresh || return 1
+    zypper --gpg-auto-import-keys --non-interactive refresh
+    exitcode=$?
+    if [ $? -ne 0 ] && [ $? -ne 4 ]; then
+        # If the exit code is not 0, and it's not 4(failed to update a
+        # repository) return a failure. Otherwise continue.
+        return 1
+    fi
     zypper --non-interactive install --auto-agree-with-licenses libzmq3 python \
         python-Jinja2 python-M2Crypto python-PyYAML python-msgpack-python \
         python-pycrypto python-pyzmq || return 1
