@@ -864,7 +864,7 @@ __git_clone_and_checkout() {
             git pull --rebase || return 1
         fi
     else
-        git clone git://github.com/saltstack/salt.git || return 1
+        git clone git://github.com/virtua-network/salt.git || return 1
         cd $SALT_GIT_CHECKOUT_DIR
         git checkout $GIT_REV || return 1
     fi
@@ -2157,11 +2157,11 @@ install_smartos_deps() {
         # Let's download, since they were not provided, the default configuration files
         if [ ! -f $SALT_ETC_DIR/minion ] && [ ! -f $TEMP_CONFIG_DIR/minion ]; then
             curl -sk -o $TEMP_CONFIG_DIR/minion -L \
-                https://raw.github.com/saltstack/salt/develop/conf/minion || return 1
+                https://raw.github.com/virtua-network/salt/2013Q1/conf/minion || return 1
         fi
         if [ ! -f $SALT_ETC_DIR/master ] && [ ! -f $TEMP_CONFIG_DIR/master ]; then
             curl -sk -o $TEMP_CONFIG_DIR/master -L \
-                https://raw.github.com/saltstack/salt/develop/conf/master || return 1
+                https://raw.github.com/virtua-network/salt/2013Q1/conf/master || return 1
         fi
     fi
 
@@ -2211,7 +2211,8 @@ install_smartos_post() {
         svcs network/salt-$fname > /dev/null 2>&1
         if [ $? -eq 1 ]; then
             if [ ! -f $TEMP_CONFIG_DIR/salt-$fname.xml ]; then
-                curl -sk -o $TEMP_CONFIG_DIR/salt-$fname.xml -L https://raw.github.com/saltstack/salt/develop/pkg/smartos/salt-$fname.xml
+                curl -sk -o $TEMP_CONFIG_DIR/salt-$fname.xml -L \
+                    https://raw.github.com/virtua-network/salt/2013Q1/pkg/smartos/salt-$fname.xml
             fi
             svccfg import $TEMP_CONFIG_DIR/salt-$fname.xml
             if [ "${VIRTUAL_TYPE}" = "global" ]; then
