@@ -10,6 +10,7 @@
     :license: Apache 2.0, see LICENSE for more details.
 '''
 
+import re
 import glob
 import shutil
 from bootstrap.unittesting import *
@@ -38,7 +39,7 @@ CLEANUP_COMMANDS_BY_OS_FAMILY = {
     ],
     'RedHat': [
         'yum -y remove salt-minion salt-master',
-        'yum -y remove python{0}-m2crypto m2crypto python{0}-crypto '
+        'yum -y remove python{0}-m2crypto python{0}-crypto '
         'python{0}-msgpack python{0}-zmq python{0}-jinja2'.format(
             GRAINS['osrelease'].split('.')[0] == '5' and '26' or ''
         ),
@@ -49,13 +50,14 @@ CLEANUP_COMMANDS_BY_OS_FAMILY = {
     ],
     'Solaris': [
         'pkgin -y rm libtool-base autoconf automake libuuid gcc-compiler '
-        'gmake py27-setuptools py27-yaml py27-crypto swig',
+        'gmake py27-setuptools py27-crypto swig',
         'svcs network/salt-minion >/dev/null 2>&1 && svcadm disable network/salt-minion >/dev/null 2>&1 || exit 0',
         'svcs network/salt-minion >/dev/null 2>&1 && svccfg delete network/salt-minion >/dev/null 2>&1 || exit 0',
         'svcs network/salt-master >/dev/null 2>&1 && svcadm disable network/salt-master >/dev/null 2>&1 || exit 0',
         'svcs network/salt-master >/dev/null 2>&1 && svccfg delete network/salt-master >/dev/null 2>&1 || exit 0',
         'svcs network/salt-syndic >/dev/null 2>&1 && svcadm disable network/salt-syndic >/dev/null 2>&1 || exit 0',
-        'svcs network/salt-syndic >/dev/null 2>&1 && svccfg delete network/salt-syndic >/dev/null 2>&1 || exit 0'
+        'svcs network/salt-syndic >/dev/null 2>&1 && svccfg delete network/salt-syndic >/dev/null 2>&1 || exit 0',
+        'pip-2.7 uninstall -y PyYaml Jinja2 M2Crypto msgpack-python pyzmq'
     ],
     'Suse': [
         '(zypper --non-interactive se -i salt-master || exit 0 && zypper --non-interactive remove salt-master && exit 0) || '
@@ -79,12 +81,31 @@ OS_REQUIRES_PIP_ALLOWED = (
     # passing -P to the bootstrap script.
     # The GRAINS['os'] which are in this list, requires that extra argument.
     'SmartOS',
-    'Suse'  # Need to revisit openSUSE and SLES for the proper OS grain.
+    'Suse',  # Need to revisit openSUSE and SLES for the proper OS grain.
+    #'SUSE  Enterprise Server',  # Only SuSE SLES SP1 requires -P (commented out)
 )
 
 # SLES grains differ from openSUSE, let do a 1:1 direct mapping
 CLEANUP_COMMANDS_BY_OS_FAMILY['SUSE  Enterprise Server'] = \
     CLEANUP_COMMANDS_BY_OS_FAMILY['Suse']
+
+
+IS_SUSE_SP1 = False
+if os.path.isfile('/etc/SuSE-release'):
+    match = re.search(
+        r'PATCHLEVEL(?:[\s]+)=(?:[\s]+)1',
+        open('/etc/SuSE-release').read()
+    )
+    IS_SUSE_SP1 = match is not None
+
+
+def requires_pip_based_installations():
+    if GRAINS['os'] == 'SUSE  Enterprise Server' and IS_SUSE_SP1:
+        # Only SuSE SLES SP1 requires -P
+        return True
+    if GRAINS['os'] not in OS_REQUIRES_PIP_ALLOWED:
+        return False
+    return True
 
 
 class InstallationTestCase(BootstrapTestCase):
@@ -132,11 +153,19 @@ class InstallationTestCase(BootstrapTestCase):
             )
 
         # As a last resort, by hand house cleaning...
-        for glob_rule in ('/tmp/git', '/usr/lib*/python*/*-packages/salt*',
-                          '/usr/bin/salt*', '/usr/lib/systemd/system/salt*',
-                          '/etc/init*/salt*', '/usr/share/doc/salt*',
-                          '/usr/share/man/man*/salt*', '/var/*/salt*',
-                          '/etc/salt'):
+        for glob_rule in ('/etc/salt',
+                          '/etc/init*/salt*',
+                          '/etc/rc.d/init.d/salt*',
+                          '/lib/systemd/system/salt*',
+                          '/tmp/git',
+                          '/usr/bin/salt*',
+                          '/usr/lib*/python*/*-packages/salt*',
+                          '/usr/lib/systemd/system/salt*',
+                          '/usr/local/etc/salt*',
+                          '/usr/share/doc/salt*',
+                          '/usr/share/man/man*/salt*',
+                          '/var/*/salt*',
+                          ):
             for entry in glob.glob(glob_rule):
                 if os.path.isfile(entry):
                     print 'Removing file {0!r}'.format(entry)
@@ -150,7 +179,7 @@ class InstallationTestCase(BootstrapTestCase):
             self.skipTest('\'/bin/bash\' was not found on this system')
 
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         self.assert_script_result(
@@ -178,7 +207,7 @@ class InstallationTestCase(BootstrapTestCase):
 
     def test_install_using_sh(self):
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         self.assert_script_result(
@@ -205,7 +234,7 @@ class InstallationTestCase(BootstrapTestCase):
 
     def test_install_explicit_stable(self):
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         args.append('stable')
@@ -234,7 +263,7 @@ class InstallationTestCase(BootstrapTestCase):
 
     def test_install_daily(self):
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         args.append('daily')
@@ -242,7 +271,7 @@ class InstallationTestCase(BootstrapTestCase):
         rc, out, err = self.run_script(
             args=args, timeout=15 * 60, stream_stds=True
         )
-        if GRAINS['os'] in ('Ubuntu', 'Trisquel'):
+        if GRAINS['os'] in ('Ubuntu', 'Trisquel', 'Mint'):
             self.assert_script_result(
                 'Failed to install daily',
                 0, (rc, out, err)
@@ -265,9 +294,43 @@ class InstallationTestCase(BootstrapTestCase):
                 1, (rc, out, err)
             )
 
+    def test_install_testing(self):
+        args = []
+        if requires_pip_based_installations():
+            args.append('-P')
+
+        args.append('testing')
+
+        rc, out, err = self.run_script(
+            args=args, timeout=15 * 60, stream_stds=True
+        )
+        if GRAINS['os_family'] == 'RedHat':
+            self.assert_script_result(
+                'Failed to install testing',
+                0, (rc, out, err)
+            )
+
+            # Try to get the versions report
+            self.assert_script_result(
+                'Failed to get the versions report (\'--versions-report\')',
+                0,
+                self.run_script(
+                    script=None,
+                    args=('salt-minion', '--versions-report'),
+                    timeout=15 * 60,
+                    stream_stds=True
+                )
+            )
+        else:
+            self.assert_script_result(
+                'Although system is not RedHat based, we managed to install '
+                'testing',
+                1, (rc, out, err)
+            )
+
     def test_install_stable_piped_through_sh(self):
         args = 'cat {0} | sh '.format(BOOTSTRAP_SCRIPT_PATH).split()
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.extend('-s -- -P'.split())
 
         self.assert_script_result(
@@ -324,7 +387,7 @@ class InstallationTestCase(BootstrapTestCase):
 
     def test_install_specific_git_tag(self):
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         args.extend(['git', CURRENT_SALT_STABLE_VERSION])
@@ -353,7 +416,7 @@ class InstallationTestCase(BootstrapTestCase):
 
     def test_install_specific_git_sha(self):
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         args.extend(['git', '2b6264de62bf2ea221bb2c0b8af36dfcfaafe7cf'])
@@ -430,7 +493,7 @@ class InstallationTestCase(BootstrapTestCase):
         Test if installing a salt-master works
         '''
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         args.extend(['-N', '-M'])
@@ -474,7 +537,7 @@ class InstallationTestCase(BootstrapTestCase):
 #            )
 #
 #        args = []
-#        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+#        if requires_pip_based_installations():
 #            args.append('-P')
 #
 #        args.extend(['-N', '-S'])
@@ -506,7 +569,7 @@ class InstallationTestCase(BootstrapTestCase):
         Check if distributions which require `-P` to allow pip to install
         packages, fail if that flag is not passed.
         '''
-        if GRAINS['os'] not in OS_REQUIRES_PIP_ALLOWED:
+        if not requires_pip_based_installations():
             self.skipTest(
                 'Distribution {0} does not require the extra `-P` flag'.format(
                     GRAINS['os']
@@ -537,7 +600,7 @@ class InstallationTestCase(BootstrapTestCase):
             0,
             self.run_script(
                 script=None,
-                args=('git', 'clone', 'https://github.com/saltstack/salt.git'),
+                args=('git', 'clone', 'git://github.com/saltstack/salt.git'),
                 cwd='/tmp/git',
                 timeout=15 * 60,
                 stream_stds=True
@@ -560,7 +623,7 @@ class InstallationTestCase(BootstrapTestCase):
         # Now run the bootstrap script over an existing git checkout and see
         # if it properly updates.
         args = []
-        if GRAINS['os'] in OS_REQUIRES_PIP_ALLOWED:
+        if requires_pip_based_installations():
             args.append('-P')
 
         args.extend(['git', CURRENT_SALT_STABLE_VERSION])

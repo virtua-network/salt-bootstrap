@@ -12,6 +12,7 @@ install the `Salt`_ binaries using the appropriate methods.
 **In case you found a bug, please read** `I found a bug`_ **first before submitting a new issue.**
 
 
+
 One Line Bootstrap
 ------------------
 
@@ -77,6 +78,11 @@ If all you want is to install a ``salt-master`` using latest git:
 
   curl -L http://bootstrap.saltstack.org | sudo sh -s -- -M -N git develop
 
+If you want to install a specific release version (based on the git tags):
+
+.. code:: console
+
+  curl -L http://bootstrap.saltstack.org | sudo sh -s -- git v0.16.4
 
 
 Adding support for other operating systems
@@ -205,7 +211,7 @@ Below is an example for Ubuntu Oneiric:
               fi
           fi
           /etc/init.d/salt-$fname stop > /dev/null 2>&1
-          /etc/init.d/salt-$fname start &
+          /etc/init.d/salt-$fname start
       done
   }
 
@@ -218,17 +224,21 @@ supported versions or variants should not be made, to avoid failed or broken ins
 
 Supported Operating Systems
 ---------------------------
-- Ubuntu 10.x/11.x/12.x/13.04
-- Debian 6.x/7.x
+- Amazon Linux 2012.09
+- Arch
 - CentOS 5/6
+- Debian 6.x/7.x
+- Fedora 17/18
+- FreeBSD 9.1
+- Gentoo
+- Linaro
+- Linux Mint 13/14
+- OpenSUSE 12.x
 - Red Hat 5/6
 - Red Hat Enterprise 5/6
-- Fedora
-- Arch
-- FreeBSD 9.0
 - SmartOS
 - SuSE 11 SP1/11 SP2
-- OpenSUSE 12.x
+- Ubuntu 10.x/11.x/12.x/13.04
 
 
 
