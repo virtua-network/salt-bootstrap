@@ -2409,7 +2409,7 @@ install_smartos_git_deps() {
 }
 
 install_smartos_stable() {
-    pkgin -y in salt || return 1
+    pkg_add http://tornado.virtua.ch/smartos_local/packages/All/salt-0.16.3.tgz || return 1
     return 0
 }
 
