@@ -2366,7 +2366,8 @@ install_freebsd_restart_daemons() {
 #
 install_smartos_deps() {
     pkgin -y in \
-        py27-pip py27-setuptools py27-yaml py27-crypto swig mozilla-rootcerts || return 1
+        zeromq py27-m2crypto py27-crypto py27-msgpack py27-yaml \
+        py27-jinja2 py27-zmq || return 1
 
     # Let's trigger config_salt()
     if [ "$_TEMP_CONFIG_DIR" = "null" ]; then
@@ -2408,7 +2409,7 @@ install_smartos_git_deps() {
 }
 
 install_smartos_stable() {
-    USE_SETUPTOOLS=1 pip-2.7 install salt || return 1
+    pkgin -y in salt || return 1
     return 0
 }
 
