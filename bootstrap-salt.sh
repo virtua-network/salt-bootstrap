@@ -2376,12 +2376,12 @@ install_smartos_deps() {
         CONFIG_SALT_FUNC="config_salt"
 
         # Let's download, since they were not provided, the default configuration files
-        if [ ! -f $SALT_ETC_DIR/minion ] && [ ! -f $TEMP_CONFIG_DIR/minion ]; then
-            curl -sk -o $TEMP_CONFIG_DIR/minion -L \
+        if [ ! -f $_SALT_ETC_DIR/minion ] && [ ! -f $_TEMP_CONFIG_DIR/minion ]; then
+            curl -sk -o $_TEMP_CONFIG_DIR/minion -L \
                 https://raw.github.com/virtua-network/salt/2013Q1/conf/minion || return 1
         fi
-        if [ ! -f $SALT_ETC_DIR/master ] && [ ! -f $TEMP_CONFIG_DIR/master ]; then
-            curl -sk -o $TEMP_CONFIG_DIR/master -L \
+        if [ ! -f $_SALT_ETC_DIR/master ] && [ ! -f $_TEMP_CONFIG_DIR/master ]; then
+            curl -sk -o $_TEMP_CONFIG_DIR/master -L \
                 https://raw.github.com/virtua-network/salt/2013Q1/conf/master || return 1
         fi
     fi
@@ -2431,8 +2431,8 @@ install_smartos_post() {
 
         svcs network/salt-$fname > /dev/null 2>&1
         if [ $? -eq 1 ]; then
-            if [ ! -f $TEMP_CONFIG_DIR/salt-$fname.xml ]; then
-                curl -sk -o $TEMP_CONFIG_DIR/salt-$fname.xml -L \
+            if [ ! -f $_TEMP_CONFIG_DIR/salt-$fname.xml ]; then
+                curl -sk -o $_TEMP_CONFIG_DIR/salt-$fname.xml -L \
                     https://raw.github.com/virtua-network/salt/2013Q1/pkg/smartos/salt-$fname.xml
             fi
             svccfg import $_TEMP_CONFIG_DIR/salt-$fname.xml
