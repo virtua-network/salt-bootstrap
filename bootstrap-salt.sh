@@ -1,6 +1,6 @@
 #!/bin/sh -
 #===============================================================================
-# vim: softtabstop=4 shiftwidth=4 expandtab fenc=utf-8 spell spelllang=en
+# vim: softtabstop=4 shiftwidth=4 expandtab fenc=utf-8 spell spelllang=en cc=81
 #===============================================================================
 #
 #          FILE: bootstrap-salt.sh
@@ -17,7 +17,7 @@
 #       CREATED: 10/15/2012 09:49:37 PM WEST
 #===============================================================================
 set -o nounset                              # Treat unset variables as an error
-__ScriptVersion="1.5.7"
+__ScriptVersion="1.5.8"
 __ScriptName="bootstrap-salt.sh"
 
 #===============================================================================
@@ -154,7 +154,9 @@ usage() {
       resort method. NOTE: This works for functions which actually implement
       pip based installations.
   -F  Allow copied files to overwrite existing(config, init.d, etc)
-  -U  If optional, don't fully upgrade the system prior to bootstrapping salt
+  -U  If set, fully upgrade the system prior to bootstrapping salt
+  -K  If set, keep the temporary files in the temporary directories specified
+      with -c and -k.
 
 EOT
 }   # ----------  end of function usage  ----------
@@ -239,7 +241,7 @@ _UPGRADE_SYS=${BS_UPGRADE_SYS:-$BS_FALSE}
 # __SIMPLIFY_VERSION is mostly used in Solaris based distributions
 __SIMPLIFY_VERSION=$BS_TRUE
 
-while getopts ":hvnDc:k:MSNCPFU" opt
+while getopts ":hvnDc:k:MSNCPFUK" opt
 do
   case "${opt}" in
 
@@ -273,6 +275,7 @@ do
     P )  _PIP_ALLOWED=$BS_TRUE                          ;;
     F )  _FORCE_OVERWRITE=$BS_TRUE                      ;;
     U )  _UPGRADE_SYS=$BS_TRUE                          ;;
+    K )  _KEEP_TEMP_FILES=$BS_TRUE                      ;;
 
     \?)  echo
          echoerror "Option does not exist : $OPTARG"
@@ -946,12 +949,129 @@ __git_clone_and_checkout() {
 
 
 #---  FUNCTION  ----------------------------------------------------------------
-#          NAME:  __apt_get_noinput
+#          NAME:  __apt_get_install_noinput
 #   DESCRIPTION:  (DRY) apt-get install with noinput options
 #-------------------------------------------------------------------------------
-__apt_get_noinput() {
+__apt_get_install_noinput() {
     apt-get install -y -o DPkg::Options::=--force-confold $@; return $?
 }
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  __apt_get_upgrade_noinput
+#   DESCRIPTION:  (DRY) apt-get upgrade with noinput options
+#-------------------------------------------------------------------------------
+__apt_get_upgrade_noinput() {
+    apt-get upgrade -y -o DPkg::Options::=--force-confold $@; return $?
+}
+
+
+#---  FUNCTION  ----------------------------------------------------------------
+#          NAME:  __check_end_of_life_versions
+#   DESCRIPTION:  Check for end of life distribution versions
+#-------------------------------------------------------------------------------
+__check_end_of_life_versions() {
+
+    case "${DISTRO_NAME_L}" in
+        debian)
+            # Debian versions bellow 6 are not supported
+            if [ $DISTRO_MAJOR_VERSION -lt 6 ]; then
+                echoerror "End of life distributions are not supported."
+                echoerror "Please consider upgrading to the next stable. See:"
+                echoerror "    https://wiki.debian.org/DebianReleases"
+                exit 1
+            fi
+            ;;
+
+        ubuntu)
+            # Ubuntu versions not supported
+            #
+            #  < 10
+            #  = 10.10
+            #  = 11.04
+            #  = 11.10
+            if ([ $DISTRO_MAJOR_VERSION -eq 10 ] && [ $DISTRO_MINOR_VERSION -eq 10 ]) || \
+               ([ $DISTRO_MAJOR_VERSION -eq 11 ] && [ $DISTRO_MINOR_VERSION -eq 04 ]) || \
+               ([ $DISTRO_MAJOR_VERSION -eq 11 ] && [ $DISTRO_MINOR_VERSION -eq 10 ]) || \
+               [ $DISTRO_MAJOR_VERSION -lt 10 ]; then
+                echoerror "End of life distributions are not supported."
+                echoerror "Please consider upgrading to the next stable. See:"
+                echoerror "    https://wiki.ubuntu.com/Releases"
+                exit 1
+            fi
+            ;;
+
+        opensuse)
+            # openSUSE versions not supported
+            #
+            #  <= 12.1
+            if ([ $DISTRO_MAJOR_VERSION -eq 12 ] && [ $DISTRO_MINOR_VERSION -eq 1 ]) || [ $DISTRO_MAJOR_VERSION -lt 12 ]; then
+                echoerror "End of life distributions are not supported."
+                echoerror "Please consider upgrading to the next stable. See:"
+                echoerror "    http://en.opensuse.org/Lifetime"
+                exit 1
+            fi
+            ;;
+
+        suse)
+            # SuSE versions not supported
+            #
+            # < 11 SP2
+            SUSE_PATCHLEVEL=$(awk '/PATCHLEVEL/ {print $3}' /etc/SuSE-release )
+            if [ "x${SUSE_PATCHLEVEL}" = "x" ]; then
+                SUSE_PATCHLEVEL="00"
+            fi
+            if ([ $DISTRO_MAJOR_VERSION -eq 11 ] && [ $SUSE_PATCHLEVEL -lt 02 ]) || [ $DISTRO_MAJOR_VERSION -lt 11 ]; then
+                echoerror "Versions lower than SuSE 11 SP2 are not supported."
+                echoerror "Please consider upgrading to the next stable"
+                exit 1
+            fi
+            ;;
+
+        fedora)
+            # Fedora lower than 18 are no longer supported
+            if [ $DISTRO_MAJOR_VERSION -lt 18 ]; then
+                echoerror "End of life distributions are not supported."
+                echoerror "Please consider upgrading to the next stable. See:"
+                echoerror "    https://fedoraproject.org/wiki/Releases"
+                exit 1
+            fi
+            ;;
+
+        centos)
+            # CentOS versions lower than 5 are no longer supported
+            if [ $DISTRO_MAJOR_VERSION -lt 5 ]; then
+                echoerror "End of life distributions are not supported."
+                echoerror "Please consider upgrading to the next stable. See:"
+                echoerror "    http://wiki.centos.org/Download"
+                exit 1
+            fi
+            ;;
+
+        red_hat*linux)
+            # Red Hat (Enterprise) Linux versions lower than 5 are no longer supported
+            if [ $DISTRO_MAJOR_VERSION -lt 5 ]; then
+                echoerror "End of life distributions are not supported."
+                echoerror "Please consider upgrading to the next stable. See:"
+                echoerror "    https://access.redhat.com/support/policy/updates/errata/"
+                exit 1
+            fi
+            ;;
+
+        freebsd)
+            # FreeBSD versions lower than 9.1 are not supported.
+            if ([ $DISTRO_MAJOR_VERSION -eq 9 ] && [ $DISTRO_MINOR_VERSION -lt 01 ]) || [ $DISTRO_MAJOR_VERSION -lt 9 ]; then
+                echoerror "Versions lower than FreeBSD 9.1 are not supported."
+                exit 1
+            fi
+            ;;
+
+        *)
+            ;;
+    esac
+}
+# Fail soon for end of life versions
+__check_end_of_life_versions
 
 
 #---  FUNCTION  ----------------------------------------------------------------
@@ -1107,34 +1227,49 @@ movefile() {
 #
 #   Ubuntu Install Functions
 #
+__enable_universe_repository() {
+    if [ "x$(grep -R universe /etc/apt/sources.list /etc/apt/sources.list.d/ | grep -v '#')" != "x" ]; then
+        # The universe repository is already enabled
+        return 0
+    fi
+
+    echodebug "Enabling the universe repository"
+
+    # Ubuntu versions higher than 12.04 do not live in the old repositories
+    if [ $DISTRO_MAJOR_VERSION -gt 12 ] || ([ $DISTRO_MAJOR_VERSION -eq 12 ] && [ $DISTRO_MINOR_VERSION -gt 04 ]); then
+        add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe" || return 1
+    elif [ $DISTRO_MAJOR_VERSION -lt 11 ] && [ $DISTRO_MINOR_VERSION -lt 10 ]; then
+        # Below Ubuntu 11.10, the -y flag to add-apt-repository is not supported
+        add-apt-repository "deb http://old-releases.ubuntu.com/ubuntu $(lsb_release -sc) universe" || return 1
+    fi
+
+    add-apt-repository -y "deb http://old-releases.ubuntu.com/ubuntu $(lsb_release -sc) universe" || return 1
+
+    return 0
+}
+
 install_ubuntu_deps() {
     apt-get update
-    if [ $DISTRO_MAJOR_VERSION -eq 12 ] && [ $DISTRO_MINOR_VERSION -gt 04 ] || [ $DISTRO_MAJOR_VERSION -gt 12 ]; then
-        # Above Ubuntu 12.04 add-apt-repository is in a different package
-        __apt_get_noinput software-properties-common || return 1
+    if [ $DISTRO_MAJOR_VERSION -eq 12 ] || [ $DISTRO_MAJOR_VERSION -gt 12 ]; then
+        # Above Ubuntu 11.10 add-apt-repository is in a different package
+        __apt_get_install_noinput software-properties-common || return 1
     else
-        __apt_get_noinput python-software-properties || return 1
+        __apt_get_install_noinput python-software-properties || return 1
     fi
 
-    if [ "x$(grep -R universe /etc/apt/sources.list /etc/apt/sources.list.d/ | grep -v '#')" != "x" ]; then
-        __IS_UNIVERSE_ENABLED=$BS_TRUE
-    else
-        __IS_UNIVERSE_ENABLED=$BS_FALSE
-    fi
+    __enable_universe_repository || return 1
 
-
-    if [ $DISTRO_MAJOR_VERSION -lt 11 ] && [ $DISTRO_MINOR_VERSION -lt 10 ]; then
-        add-apt-repository ppa:saltstack/salt || return 1
-        add-apt-repository "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe" || return 1
-    else
+    if [ $DISTRO_MAJOR_VERSION -gt 11 ] || ([ $DISTRO_MAJOR_VERSION -eq 11 ] && [ $DISTRO_MINOR_VERSION -gt 04 ]); then
+        # Above Ubuntu 11.04 add a -y flag
         add-apt-repository -y ppa:saltstack/salt || return 1
-        add-apt-repository -y "deb http://archive.ubuntu.com/ubuntu $(lsb_release -sc) universe" || return 1
+    else
+        add-apt-repository ppa:saltstack/salt || return 1
     fi
 
     apt-get update
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
     return 0
@@ -1142,37 +1277,27 @@ install_ubuntu_deps() {
 
 install_ubuntu_daily_deps() {
     install_ubuntu_deps
-    if [ $DISTRO_MAJOR_VERSION -eq 12 ] && [ $DISTRO_MINOR_VERSION -gt 04 ] || [ $DISTRO_MAJOR_VERSION -gt 12 ]; then
-        # Above Ubuntu 12.04 add-apt-repository is in a different package
-        __apt_get_noinput software-properties-common || return 1
+    if [ $DISTRO_MAJOR_VERSION -eq 12 ] || [ $DISTRO_MAJOR_VERSION -gt 12 ]; then
+        # Above Ubuntu 11.10 add-apt-repository is in a different package
+        __apt_get_install_noinput software-properties-common || return 1
     else
-        __apt_get_noinput python-software-properties || return 1
+        __apt_get_install_noinput python-software-properties || return 1
     fi
-    if [ $DISTRO_MAJOR_VERSION -lt 11 ] && [ $DISTRO_MINOR_VERSION -lt 10 ]; then
-        add-apt-repository ppa:saltstack/salt-daily || return 1
-    else
+
+    __enable_universe_repository || return 1
+
+    # for anything up to and including 11.04 do not use the -y option
+    if [ $DISTRO_MAJOR_VERSION -gt 11 ] || ([ $DISTRO_MAJOR_VERSION -eq 11 ] && [ $DISTRO_MINOR_VERSION -gt 04 ]); then
+        # Above Ubuntu 11.04 add a -y flag
         add-apt-repository -y ppa:saltstack/salt-daily || return 1
+    else
+        add-apt-repository ppa:saltstack/salt-daily || return 1
     fi
 
     apt-get update
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
-    fi
-
-    return 0
-}
-
-install_ubuntu_11_10_deps() {
-    apt-get update
-    __apt_get_noinput python-software-properties || return 1
-    add-apt-repository -y 'deb http://us.archive.ubuntu.com/ubuntu/ oneiric universe' || return 1
-    add-apt-repository -y ppa:saltstack/salt || return 1
-
-    apt-get update
-
-    if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
     return 0
@@ -1180,7 +1305,7 @@ install_ubuntu_11_10_deps() {
 
 install_ubuntu_git_deps() {
     install_ubuntu_deps || return 1
-    __apt_get_noinput git-core python-yaml python-m2crypto python-crypto \
+    __apt_get_install_noinput git-core python-yaml python-m2crypto python-crypto \
         msgpack-python python-zmq python-jinja2 || return 1
 
     __git_clone_and_checkout || return 1
@@ -1191,11 +1316,6 @@ install_ubuntu_git_deps() {
         CONFIG_SALT_FUNC="config_salt"
     fi
 
-    return 0
-}
-
-install_ubuntu_11_10_post() {
-    add-apt-repository -y --remove 'deb http://us.archive.ubuntu.com/ubuntu/ oneiric universe' || return 1
     return 0
 }
 
@@ -1210,7 +1330,7 @@ install_ubuntu_stable() {
     if [ $_INSTALL_SYNDIC -eq $BS_TRUE ]; then
         packages="${packages} salt-syndic"
     fi
-    __apt_get_noinput ${packages} || return 1
+    __apt_get_install_noinput ${packages} || return 1
     return 0
 }
 
@@ -1305,7 +1425,7 @@ install_debian_deps() {
     apt-get update
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
 }
@@ -1342,9 +1462,9 @@ _eof
 
         apt-get update
         # We NEED to install the unstable dpkg or mime-support WILL fail to install
-        __apt_get_noinput -t unstable dpkg liblzma5 python mime-support || return 1
-        __apt_get_noinput -t unstable libzmq3 libzmq3-dev || return 1
-        __apt_get_noinput build-essential python-dev python-pip || return 1
+        __apt_get_install_noinput -t unstable dpkg liblzma5 python mime-support || return 1
+        __apt_get_install_noinput -t unstable libzmq3 libzmq3-dev || return 1
+        __apt_get_install_noinput build-essential python-dev python-pip || return 1
 
         # Saltstack's Unstable Debian repository
         if [ "x$(grep -R 'debian.saltstack.com' /etc/apt)" = "x" ]; then
@@ -1368,10 +1488,10 @@ _eof
     apt-get update || return 1
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
-    __apt_get_noinput python-zmq || return 1
+    __apt_get_install_noinput python-zmq || return 1
     return 0
 }
 
@@ -1412,15 +1532,15 @@ _eof
         fi
 
         apt-get update
-        __apt_get_noinput -t unstable libzmq3 libzmq3-dev || return 1
-        __apt_get_noinput build-essential python-dev python-pip || return 1
+        __apt_get_install_noinput -t unstable libzmq3 libzmq3-dev || return 1
+        __apt_get_install_noinput build-essential python-dev python-pip || return 1
     else
         apt-get update || return 1
-        __apt_get_noinput python-zmq || return 1
+        __apt_get_install_noinput python-zmq || return 1
     fi
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
     return 0
@@ -1431,7 +1551,7 @@ install_debian_git_deps() {
     export DEBIAN_FRONTEND=noninteractive
 
     apt-get update
-    __apt_get_noinput lsb-release python python-pkg-resources python-crypto \
+    __apt_get_install_noinput lsb-release python python-pkg-resources python-crypto \
         python-jinja2 python-m2crypto python-yaml msgpack-python python-pip \
         git || return 1
 
@@ -1444,7 +1564,7 @@ install_debian_git_deps() {
     fi
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
     return 0
@@ -1454,7 +1574,7 @@ install_debian_6_git_deps() {
     install_debian_6_deps || return 1
     if [ $_PIP_ALLOWED -eq $BS_TRUE ]; then
         easy_install -U Jinja2 || return 1
-        __apt_get_noinput lsb-release python python-pkg-resources python-crypto \
+        __apt_get_install_noinput lsb-release python python-pkg-resources python-crypto \
             python-m2crypto python-yaml msgpack-python python-pip git || return 1
 
         __git_clone_and_checkout || return 1
@@ -1469,7 +1589,7 @@ install_debian_6_git_deps() {
     fi
 
     if [ $_UPGRADE_SYS -eq $BS_TRUE ]; then
-        apt-get upgrade -y -o DPkg::Options::=--force-confold || return 1
+        __apt_get_upgrade_noinput || return 1
     fi
 
     return 0
@@ -1492,7 +1612,7 @@ __install_debian_stable() {
     if [ $_INSTALL_SYNDIC -eq $BS_TRUE ]; then
         packages="${packages} salt-syndic"
     fi
-    __apt_get_noinput ${packages} || return 1
+    __apt_get_install_noinput ${packages} || return 1
 
     if [ $_PIP_ALLOWED -eq $BS_TRUE ]; then
         # Building pyzmq from source to build it against libzmq3.
